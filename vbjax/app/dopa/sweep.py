@@ -5,7 +5,7 @@ import jax.numpy as jp
 import vbjax as vb
 
 
-def sweep_node(init, params, T=10.0, dt=0.01, sigma=1e-3, seed=42, cores=4):
+def sweep_node(init, C, params, T=10.0, dt=0.01, sigma=1e-3, seed=42, cores=4):
     "Run sweep for single dopa node on params matrix"
 
     # setup grid for parameters
@@ -17,7 +17,7 @@ def sweep_node(init, params, T=10.0, dt=0.01, sigma=1e-3, seed=42, cores=4):
         pravel = vb.tuple_shard(pravel, cores)
 
     # setup model
-    f = lambda x, p: vb.dopa_dfun(x, (0,0,0), p)
+    f = lambda x, p: vb.dopa_dfun(x, C, p)
     _, loop = vb.make_sde(dt, f, sigma)
 
     # assume same inits and noise for all params
@@ -39,7 +39,7 @@ def sweep_node(init, params, T=10.0, dt=0.01, sigma=1e-3, seed=42, cores=4):
 
 def sweep_network(init, params, Ci, Ce, Cd,
                   T=10.0, dt=0.01, sigma=1e-3, seed=42, cores=4):
-    "Run sweep for single dopa node on params matrix"
+    "Run sweep for dopa network on params matrix"
 
     # check & convert connectivities
     assert Ci.shape == Ce.shape == Cd.shape

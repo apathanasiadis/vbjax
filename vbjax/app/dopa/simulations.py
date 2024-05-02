@@ -104,3 +104,8 @@ def make_raw(init, t_period, total_time=100.0, dt=1e-1):
         return ts, raw.reshape(-1, n_state_variables, n_nodes)
 
     return run
+
+if __name__ == '__main__':
+
+    # TODO set up an argparser to have a cli e.g. on slurm
+    pass
