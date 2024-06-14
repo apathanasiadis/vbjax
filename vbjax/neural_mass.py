@@ -1,5 +1,7 @@
 import collections
+import jax
 import jax.numpy as np
+import vbjax as vb
 
 
 JRTheta = collections.namedtuple(
@@ -163,7 +165,7 @@ dopa_default_initial_state = DopaState(
     r=0.03, V=-67.0, u=0.0, Sa=0.0, Sg=0.0, Dp=0.5)
 
 def dopa_dfun(y, cy, p: DopaTheta):
-    "Adaptive QIF model with dopamine modulation."
+    "Adaptive QIF model with dopamine modulation --modified." 
 
     r, V, u, Sa, Sg, Dp = y
     c_inh, c_exc, c_dopa = cy
@@ -172,7 +174,7 @@ def dopa_dfun(y, cy, p: DopaTheta):
     dr = 2. * a * r * V + b * r - ga * Sa * r - gg * Sg * r + (a * Delta) / np.pi
     dV = a * V**2 + b * V + c + Eta - (np.pi**2 * r**2) / a + (Ad * Dp + Bd) * ga * Sa * (Ea - V) + gg * Sg * (Eg - V) + Iext - u
     du = alpha * (beta * V - u) + ud * r
-    dSa = -Sa / tauSa + Sja * c_exc
+    dSa = -Sa / tauSa + Sja * (c_exc + r)
     dSg = -Sg / tauSg + Sjg * c_inh
     dDp = (k * c_dopa - Vmax * Dp / (Km + Dp)) / tau_Dp
     
@@ -203,3 +205,135 @@ def dopa_gfun_mulr(y, p):
 def dopa_gfun_add(y, p):
     "Provides an additive noise gfun."
     return p.sigma
+
+# functions for each differential equation of the full system
+def dopa_dr(y, cy, p: DopaTheta):
+    "Adaptive QIF model with dopamine modulation."
+
+    r, V, u, Sa, Sg, Dp = y
+    c_inh, c_exc, c_dopa = cy
+    a, b, c, ga, gg, Eta, Delta, Iext, Ea, Eg, Sja, Sjg, tauSa, tauSg, alpha, beta, ud, k, Vmax, Km, Bd, Ad, tau_Dp, *_ = p
+
+    dr = 2. * a * r * V + b * r - ga * Sa * r - gg * Sg * r + (a * Delta) / np.pi
+    return dr
+
+def dopa_dV(y, cy, p: DopaTheta):
+    "Adaptive QIF model with dopamine modulation."
+
+    r, V, u, Sa, Sg, Dp = y
+    c_inh, c_exc, c_dopa = cy
+    a, b, c, ga, gg, Eta, Delta, Iext, Ea, Eg, Sja, Sjg, tauSa, tauSg, alpha, beta, ud, k, Vmax, Km, Bd, Ad, tau_Dp, *_ = p
+
+    dV = a * V**2 + b * V + c + Eta - (np.pi**2 * r**2) / a + (Ad * Dp + Bd) * ga * Sa * (Ea - V) + gg * Sg * (Eg - V) + Iext - u    
+    return dV
+
+def dopa_du(y, cy, p: DopaTheta):
+    "Adaptive QIF model with dopamine modulation."
+
+    r, V, u, Sa, Sg, Dp = y
+    c_inh, c_exc, c_dopa = cy
+    a, b, c, ga, gg, Eta, Delta, Iext, Ea, Eg, Sja, Sjg, tauSa, tauSg, alpha, beta, ud, k, Vmax, Km, Bd, Ad, tau_Dp, *_ = p
+
+    du = alpha * (beta * V - u) + ud * r
+    return du
+
+def dopa_dSa(y, cy, p: DopaTheta):
+    "Adaptive QIF model with dopamine modulation."
+
+    r, V, u, Sa, Sg, Dp = y
+    c_inh, c_exc, c_dopa = cy
+    a, b, c, ga, gg, Eta, Delta, Iext, Ea, Eg, Sja, Sjg, tauSa, tauSg, alpha, beta, ud, k, Vmax, Km, Bd, Ad, tau_Dp, *_ = p
+
+    dSa = -Sa / tauSa + Sja * (c_exc + r)    
+    return dSa
+
+def dopa_dSg(y, cy, p: DopaTheta):
+    "Adaptive QIF model with dopamine modulation."
+
+    r, V, u, Sa, Sg, Dp = y
+    c_inh, c_exc, c_dopa = cy
+    a, b, c, ga, gg, Eta, Delta, Iext, Ea, Eg, Sja, Sjg, tauSa, tauSg, alpha, beta, ud, k, Vmax, Km, Bd, Ad, tau_Dp, *_ = p
+
+    dSg = -Sg / tauSg + Sjg * c_inh   
+    return dSg
+
+def dopa_dDp(y, cy, p: DopaTheta):
+    "Adaptive QIF model with dopamine modulation."
+
+    r, V, u, Sa, Sg, Dp = y
+    c_inh, c_exc, c_dopa = cy
+    a, b, c, ga, gg, Eta, Delta, Iext, Ea, Eg, Sja, Sjg, tauSa, tauSg, alpha, beta, ud, k, Vmax, Km, Bd, Ad, tau_Dp, *_ = p
+
+    dDp = (k * c_dopa - Vmax * Dp / (Km + Dp)) / tau_Dp    
+    return dDp
+
+
+################################################################################
+######  Chen and Campbell model  ###############################################
+################################################################################
+ChCaTheta = collections.namedtuple(
+    typename='chcaTheta',
+    field_names='a, g, Delta, Eta, Iext, E, tauS, Sj, uj, alpha, beta, sigma')
+
+
+ChCaState = collections.namedtuple(
+    typename='ChCaState',
+    field_names='r V u S')
+
+chca_default_theta = ChCaTheta(
+    a=0.6215, g=1.2308,
+    Delta=0.02, Eta=0.18, Iext=0., E=1., tauS=2.6, Sj=1.2308,
+    uj=0.0189, alpha=0.0077, beta=-0.0062,
+    sigma=0.0,
+    )
+
+chca_default_initial_state = ChCaState(
+    r=0.0, V=0.0, u=0.0, S=0.0)
+
+def ChCa_dr(y, p:ChCaTheta):
+    r, V, u, S = y
+    a, g, Delta, *_ = p
+    dr = 2. * r * V - g * S * r - a * r +  Delta / np.pi
+    return dr
+
+def ChCa_dV(y, p:ChCaTheta):
+    r, V, u, S = y
+    a, g, Delta, Eta, Iext, E, *_ = p
+    dV = V**2 - a * V + Eta - (np.pi**2 * r**2) + g * S * (E - V) + Iext - u
+    return dV
+
+def ChCa_du(y, p:ChCaTheta):
+    r, V, u, S = y
+    a, g, Delta, Eta, Iext, E, tauS, Sj, uj, alpha, beta, *_ = p
+    du = alpha * (beta * V - u) + uj * r
+    return du
+
+def ChCa_dS(y, p:ChCaTheta):
+    r, V, u, S = y
+    a, g, Delta, Eta, Iext, E, tauS, Sj, *_ = p
+    dS = -S / tauS + Sj * r
+    return dS
+
+def ChCa_rV_dfun(y, p: ChCaTheta):
+    "Adaptive QIF model with fixed dynamics for slow subsystems"
+    dr = ChCa_dr(y, p)
+    dV = ChCa_dV(y, p)
+    return np.array([dr, dV])
+
+
+def ChCa_dfun(y, p: ChCaTheta):
+    "Adaptive QIF model with dopamine modulation."
+
+    r, V, u, S = y
+    a, g, Delta, Eta, Iext, E, tauS, Sj, uj, alpha, beta, *_ = p
+
+    dr = ChCa_dr(y, p)  # 2. * r * V - g * S * r - a * r +  Delta / np.pi
+    dV = ChCa_dV(y, p)  # V**2 - a * V + Eta - (np.pi**2 * r**2) + g * S * (E - V) + Iext - u
+    du = alpha * (beta * V - u) + uj * r
+    dS = -S / tauS + Sj * r
+    return np.array([dr, dV, du, dS])
+
+def chca_gfun_add(y, p):
+    "Provides an additive noise gfun."
+    return p.sigma
+

@@ -29,6 +29,7 @@ from .neural_mass import (
     BVEPTheta, bvep_default_theta, bvep_dfun, DCMTheta, dcm_dfun,
     DopaTheta, dopa_dfun, dopa_default_theta, dopa_default_initial_state,
     dopa_net_dfun, dopa_r_positive, dopa_gfun_add, dopa_gfun_mulr,
+    # my additions:
         )
 from .regmap import make_region_mapping
 from .coupling import (
