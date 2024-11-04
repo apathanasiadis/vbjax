@@ -333,6 +333,37 @@ def ChCa_dfun(y, p: ChCaTheta):
     dS = -S / tauS + Sj * r
     return np.array([dr, dV, du, dS])
 
+
+def ChCa_dim_dfun(y, p: ChCaTheta):
+    "Adaptive QIF model with dopamine modulation."
+
+    r, V, u, S = y
+    C, k, v_r, v_t, t_w, beta, v_reset, uj, ea, ga, Sjump, tauSa, Iext, Delta, Eta, *_ = p
+
+    alpha = 1/t_w
+    v_ra = np.abs(v_r)
+    dr = 2*r*V/v_ra - ga*S*r/(k*v_ra) - (1+v_t/v_ra)*r +  Delta / np.pi
+    dV = V**2/v_ra + (1+v_t)*V - v_t + Eta/v_ra - (np.pi**2*r**2)/v_ra + ga*S*(ea - V)/(k*v_ra) + Iext/(k*v_ra) - u/(k*v_ra)
+    du = alpha*C * (beta*V/(k*v_ra) +beta/k - u/(k*v_ra)) + uj * r
+    dS = -C*S/(tauSa*k*v_ra) + C*Sjump*r/(k*v_ra)
+    return np.array([dr, dV, du, dS])
+
+
+def ChCa_dim_simple_dfun(y, p: ChCaTheta):
+    "Adaptive QIF model with dopamine modulation."
+
+    r, V, u, S = y
+    C, k, v_r, v_t, t_w, beta, v_reset, uj, ea, ga, Sjump, tauSa, Iext, Delta, Eta, *_ = p
+
+    alpha = 1/t_w
+    v_ra  = abs(v_r)
+    dr = Delta/np.pi + 2*r*(1 + V/v_ra) - (1 + v_t/v_ra + ga*S/(k*v_ra))*r
+    dV = ((1 + V/v_ra)**2 - (1 + v_t/v_ra)*(1 + V/v_r) - u/(k*v_ra**2) + Eta + Iext/(k*v_ra**2) + ga*S*(ea - V)/(k*v_ra**2) - np.pi**2*r**2) * (k*v_ra**2)/C
+    du = (beta*(1 + V/v_ra)/(k*v_ra) - u/(k*v_ra**2))*(k*v_ra**2)/t_w + uj*r*k*v_ra/C
+    dS = - S/tauSa + Sjump*r
+    return np.array([dr, dV, du, dS])
+
+
 def chca_gfun_add(y, p):
     "Provides an additive noise gfun."
     return p.sigma

@@ -67,13 +67,15 @@ def get_fluidity(x,
 
 def get_FC_SC_corr(r, SC):
     '''r.shape = samples x features
-    returns coef scalar.
+    returns
+    -------
+    FC, FC_ut.mean, coef scalar.
     '''
     FC = jnp.corrcoef(r, rowvar=False)
     ut_idx = jnp.triu_indices_from(FC, k=1)
     FC_ut = FC[ut_idx]
     SC_ut = SC[ut_idx]
-    return jnp.corrcoef(FC_ut, SC_ut)[1, 0]
+    return FC, FC_ut.mean(), jnp.corrcoef(FC_ut, SC_ut)[1, 0]
     
 
 get_fs = lambda dt: 1/(dt*1e-3)
